@@ -10,7 +10,7 @@ try:
 except Exception:  # pragma: no cover - fallback
     import pickle  # type: ignore
 
-from .runtime_objects import WPSlurmBatchSystem
+from .slurm_batch_system import WPSlurmBatchSystem
 from .slurm_partition import WPSlurmPartition
 
 

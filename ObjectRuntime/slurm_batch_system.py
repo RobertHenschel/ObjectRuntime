@@ -3,9 +3,9 @@ import subprocess
 import socket
 import struct
 import json
-from .slurm_partition import WPSlurmPartition
+from .wp_object import WPObject
 
-class WPSlurmBatchSystem:
+class WPSlurmBatchSystem(WPObject):
     """
     Minimal representation of a Slurm batch system object.
 
@@ -23,12 +23,11 @@ class WPSlurmBatchSystem:
 
     # Create a constructor that takes the title as an argument
     def __init__(self, title: str, path: str, host: str) -> None:
+        super().__init__(title, host=host)
         import os
         resource_path = os.path.join(os.path.dirname(__file__), "Resources", "Slurm.png")
         with open(resource_path, "rb") as f:
             self.icon = base64.b64encode(f.read()).decode("utf-8")
-        self.title = title
-        self.host = host
         self.partitions = self._getPartitions()
         self.path = path
         self.children = []
@@ -38,11 +37,7 @@ class WPSlurmBatchSystem:
     def getPartitionNames(self) -> list[str]:
         return self.partitions
     
-    def setPort(self, port: int) -> None:
-        self.port = port
-    
-    def setHost(self, host: str) -> None:
-        self.host = host
+    # setPort and setHost inherited from WPObject
     
 
     # create a function that uses the slurm binaries to list all partitions
@@ -131,8 +126,45 @@ class WPSlurmBatchSystem:
         col_count = 4
         row = 0
         col = 0
+        
+        class _Clickable(QtWidgets.QWidget):
+            def __init__(self, callback):
+                super().__init__()
+                self._callback = callback
+            def mouseDoubleClickEvent(self, event):
+                try:
+                    if callable(self._callback):
+                        self._callback()
+                finally:
+                    try:
+                        super().mouseDoubleClickEvent(event)
+                    except Exception:
+                        pass
+
         for part, child in self.children:
-            cell = QtWidgets.QWidget()
+            # Determine child path for launching viewer
+            child_path = getattr(child, "path", f"{self.path}/{part}")
+
+            def _launch_viewer(p=child_path):
+                try:
+                    import sys as _sys
+                    import subprocess as _sp
+                    _sp.Popen([
+                        _sys.executable,
+                        "-m", "ObjectViewer.viewer",
+                        "--obj", p,
+                        "--host", str(self.host),
+                        "--port", str(self.port),
+                    ], stdout=_sp.DEVNULL, stderr=_sp.DEVNULL, stdin=_sp.DEVNULL, close_fds=True)
+                except Exception as e:
+                    print(f"Failed to launch viewer: {e}")
+                    pass
+
+            cell = _Clickable(_launch_viewer)
+            try:
+                cell.setCursor(Qt.PointingHandCursor)
+            except Exception:
+                pass
             vbox = QtWidgets.QVBoxLayout(cell)
             vbox.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 

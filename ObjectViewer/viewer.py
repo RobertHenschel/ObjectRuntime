@@ -75,7 +75,6 @@ def main() -> None:
     if hasattr(obj, "getTitle"):
         title = getattr(obj, "getTitle")()
         print(title)
-    print(obj.getPartitionNames())
     if hasattr(obj, "wp_open_icon_view"):
         def _launch():
             getattr(obj, "wp_open_icon_view")()
