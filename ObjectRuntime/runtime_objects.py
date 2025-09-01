@@ -3,29 +3,7 @@ import subprocess
 import socket
 import struct
 import json
-
-class WPSlurmPartition:
-    """
-    Minimal representation of a Slurm partition object.
-    """
-    title: str
-    icon: str
-    path: str
-
-    def __init__(self, title: str, path: str) -> None:
-        import os
-        self.title = title
-        self.path = path
-        # Use same Slurm icon by default
-        resource_path = os.path.join(os.path.dirname(__file__), "Resources", "Partition.png")
-        with open(resource_path, "rb") as f:
-            self.icon = base64.b64encode(f.read()).decode("utf-8")
-
-    def getTitle(self) -> str:
-        return self.title
-
-    def getIcon(self) -> str:
-        return self.icon
+from .slurm_partition import WPSlurmPartition
 
 class WPSlurmBatchSystem:
     """
@@ -41,9 +19,7 @@ class WPSlurmBatchSystem:
     host: str
     port: int
     icon: str
-    partition: str
     partitions: list[str]
-    children: []
 
     # Create a constructor that takes the title as an argument
     def __init__(self, title: str, path: str, host: str) -> None:
@@ -55,6 +31,7 @@ class WPSlurmBatchSystem:
         self.host = host
         self.partitions = self._getPartitions()
         self.path = path
+        self.children = []
     def getTitle(self) -> str:
         return self.title
 
@@ -77,7 +54,7 @@ class WPSlurmBatchSystem:
             if proc.returncode != 0:
                 raise RuntimeError(f"Failed to get partitions: {stderr.decode('utf-8')}")
             # strip the partitions and remove ending "*" that marks the default partition
-            return [line.strip() for line in stdout.decode('utf-8').splitlines() if line.strip() and not line.strip().endswith("*")]
+            return [line.strip().rstrip("*").strip() for line in stdout.decode('utf-8').splitlines() if line.strip()]
     
     def _recv_all(self, connection: socket.socket, num_bytes: int) -> bytes:
         data = bytearray()
@@ -111,8 +88,8 @@ class WPSlurmBatchSystem:
 
     def wp_open_icon_view(self) -> None:
         from PyQt5 import QtWidgets
-        from PyQt5.QtGui import QIcon, QPixmap
-        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush, QFont
+        from PyQt5.QtCore import Qt, QRect
 
         app = QtWidgets.QApplication.instance()
         owns_app = False
@@ -140,21 +117,21 @@ class WPSlurmBatchSystem:
         grid.setAlignment(Qt.AlignTop)
 
         # Fetch child objects for each partition
-        children = []
         for part in self.getPartitionNames():
             child_path = f"{self.path}/{part}"
             try:
                 child = self._fetch_object(child_path)
-                children.append((part, child))
-            except Exception:
+                self.children.append((part, child))
+            except Exception as e:
                 # If fetch fails, still show placeholder
-                children.append((part, None))
+                print(f"Failed to fetch object for {child_path}: {e}")
+                self.children.append((part, None))
 
         # Populate grid
         col_count = 4
         row = 0
         col = 0
-        for part, child in children:
+        for part, child in self.children:
             cell = QtWidgets.QWidget()
             vbox = QtWidgets.QVBoxLayout(cell)
             vbox.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
@@ -181,7 +158,38 @@ class WPSlurmBatchSystem:
                 icon_bytes = base64.b64decode(icon_b64)
                 pixmap = QPixmap()
                 if pixmap.loadFromData(icon_bytes, "PNG"):
-                    icon_label.setPixmap(pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                    scaled = pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    # Draw badge with number of jobs if > 0
+                    jobs = 0
+                    try:
+                        jobs = child.getNumJobs()
+                    except Exception:
+                        jobs = 0
+                    if jobs > 0:
+                        # Paint badge on a copy of the pixmap
+                        composed = QPixmap(scaled)
+                        painter = QPainter(composed)
+                        try:
+                            painter.setRenderHint(QPainter.Antialiasing, True)
+                            badge_d = 22
+                            x = composed.width() - badge_d - 2
+                            y = composed.height() - badge_d - 2
+                            # Draw red circle
+                            painter.setBrush(QBrush(QColor(220, 0, 0)))
+                            painter.setPen(Qt.NoPen)
+                            painter.drawEllipse(x, y, badge_d, badge_d)
+                            # Draw white text
+                            painter.setPen(QColor(255, 255, 255))
+                            font = painter.font()
+                            font.setBold(True)
+                            font.setPointSize(max(7, int(badge_d * 0.45)))
+                            painter.setFont(font)
+                            painter.drawText(QRect(x, y, badge_d, badge_d), Qt.AlignCenter, str(jobs))
+                        finally:
+                            painter.end()
+                        icon_label.setPixmap(composed)
+                    else:
+                        icon_label.setPixmap(scaled)
             except Exception:
                 pass
 
@@ -207,48 +215,3 @@ class WPSlurmBatchSystem:
 
         if owns_app:
             app.exec_()
-
-    def wp_open(self) -> None:
-        """Open a Qt5 window listing available partitions with a refresh button."""
-        from PyQt5 import QtWidgets
-        from PyQt5.QtGui import QIcon, QPixmap
-
-        app = QtWidgets.QApplication.instance()
-        owns_app = False
-        if app is None:
-            app = QtWidgets.QApplication([])
-            owns_app = True
-
-        window = QtWidgets.QMainWindow()
-        window.setWindowTitle(self.title)
-
-        # Set application/window icon from base64-encoded PNG bytes
-        try:
-            icon_bytes = base64.b64decode(self.icon)
-            pixmap = QPixmap()
-            if pixmap.loadFromData(icon_bytes, "PNG"):
-                icon = QIcon(pixmap)
-                window.setWindowIcon(icon)
-                app.setWindowIcon(icon)
-        except Exception:
-            # If icon loading fails, continue without blocking the UI
-            pass
-
-        central = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(central)
-
-        host_label = QtWidgets.QLabel(f"Host: {self.host}")
-        partitions_list = QtWidgets.QListWidget()
-        partitions_list.addItems(self.getPartitionNames())
-
-        layout.addWidget(host_label)
-        layout.addWidget(partitions_list)
-
-        window.setCentralWidget(central)
-        window.resize(460, 340)
-        window.show()
-
-        if owns_app:
-            app.exec_()
-
-

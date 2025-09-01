@@ -10,7 +10,8 @@ try:
 except Exception:  # pragma: no cover - fallback
     import pickle  # type: ignore
 
-from .runtime_objects import WPSlurmBatchSystem, WPSlurmPartition
+from .runtime_objects import WPSlurmBatchSystem
+from .slurm_partition import WPSlurmPartition
 
 
 def recv_all(connection: socket.socket, num_bytes: int) -> bytes:
