@@ -48,34 +48,4 @@ class WPSlurmBatchSystem(WPObject):
             # strip the partitions and remove ending "*" that marks the default partition
             return self.children
     
-    def _recv_all(self, connection: socket.socket, num_bytes: int) -> bytes:
-        data = bytearray()
-        while len(data) < num_bytes:
-            chunk = connection.recv(num_bytes - len(data))
-            if not chunk:
-                raise ConnectionError("Connection closed while receiving data")
-            data.extend(chunk)
-        return bytes(data)
-
-    def _read_message(self, connection: socket.socket) -> bytes:
-        header = self._recv_all(connection, 4)
-        (length,) = struct.unpack("!I", header)
-        if length > 128 * 1024 * 1024:
-            raise ValueError("Message too large")
-        return self._recv_all(connection, length)
-
-    def _write_message(self, connection: socket.socket, payload: bytes) -> None:
-        connection.sendall(struct.pack("!I", len(payload)) + payload)
-
-    def _fetch_object(self, object_path: str):
-        try:
-            import dill as pickle  # type: ignore
-        except Exception:
-            import pickle  # type: ignore
-        with socket.create_connection((self.host, self.port), timeout=10) as sock:
-            request = {"action": "GetObject", "path": object_path}
-            self._write_message(sock, json.dumps(request).encode("utf-8"))
-            payload = self._read_message(sock)
-            return pickle.loads(payload)
-
     
