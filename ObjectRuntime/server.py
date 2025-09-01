@@ -10,7 +10,7 @@ try:
 except Exception:  # pragma: no cover - fallback
     import pickle  # type: ignore
 
-from .runtime_objects import WPSlurmBatchSystem
+from .runtime_objects import WPSlurmBatchSystem, WPSlurmPartition
 
 
 def recv_all(connection: socket.socket, num_bytes: int) -> bytes:
@@ -52,7 +52,10 @@ def handle_client(connection: socket.socket, address: Tuple[str, int]) -> None:
             object_path = message.get("path")
             print(f"Received message: {action} {object_path}")
             if object_path == "/Slurm/Quartz":
-                obj = WPSlurmBatchSystem("Quartz Batch System", "quartz.uits.iu.edu")
+                obj = WPSlurmBatchSystem("Quartz Batch System", "/Slurm/Quartz", "quartz.uits.iu.edu")
+            elif object_path.startswith("/Slurm/Quartz/"):
+                partition_name = object_path.rsplit("/", 1)[-1]
+                obj = WPSlurmPartition(partition_name, object_path)
             else:
                 raise KeyError(f"Unknown object path: {object_path}")
             payload = pickle.dumps(obj)

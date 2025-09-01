@@ -1,5 +1,6 @@
 import argparse
-import threading
+import sys
+import os
 import socket
 import json
 import struct
@@ -33,6 +34,22 @@ def write_message(connection: socket.socket, payload: bytes) -> None:
     connection.sendall(struct.pack("!I", len(payload)) + payload)
 
 
+def spawn_detached(func) -> None:
+    """Run func() in a fully detached child using double-fork + setsid."""
+    pid = os.fork()
+    if pid > 0:
+        # Parent returns immediately
+        return
+    os.setsid()
+    pid2 = os.fork()
+    if pid2 > 0:
+        os._exit(0)
+    # Grandchild: run target, then exit
+    try:
+        func()
+    finally:
+        os._exit(0)
+
 def fetch_object(host: str, port: int, object_path: str) -> Any:
     with socket.create_connection((host, port), timeout=10) as sock:
         request = {"action": "GetObject", "path": object_path}
@@ -58,15 +75,19 @@ def main() -> None:
     if hasattr(obj, "getTitle"):
         title = getattr(obj, "getTitle")()
         print(title)
-    if hasattr(obj, "wp_open"):
-        wp_thread = threading.Thread(target=getattr(obj, "wp_open"), daemon=True)
-        wp_thread.start()
+    print(obj.getPartitionNames())
+    if hasattr(obj, "wp_open_icon_view"):
+        def _launch():
+            getattr(obj, "wp_open_icon_view")()
+        spawn_detached(_launch)
     print("Done")
+    # end the application
     try:
-        input("Press Enter to exit...")
-    except EOFError:
+        sys.stdout.flush()
+        sys.stderr.flush()
+    except Exception:
         pass
-
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
