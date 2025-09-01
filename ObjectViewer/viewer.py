@@ -1,6 +1,7 @@
 import argparse
 import threading
 import socket
+import json
 import struct
 from typing import Any
 
@@ -34,7 +35,8 @@ def write_message(connection: socket.socket, payload: bytes) -> None:
 
 def fetch_object(host: str, port: int, object_path: str) -> Any:
     with socket.create_connection((host, port), timeout=10) as sock:
-        write_message(sock, object_path.encode("utf-8"))
+        request = {"action": "GetObject", "path": object_path}
+        write_message(sock, json.dumps(request).encode("utf-8"))
         payload = read_message(sock)
         obj = pickle.loads(payload)
         return obj
@@ -56,9 +58,6 @@ def main() -> None:
     if hasattr(obj, "getTitle"):
         title = getattr(obj, "getTitle")()
         print(title)
-    if hasattr(obj, "getPartitions"):
-        partitions = getattr(obj, "getPartitions")()
-        print(partitions)
     if hasattr(obj, "wp_open"):
         wp_thread = threading.Thread(target=getattr(obj, "wp_open"), daemon=True)
         wp_thread.start()

@@ -2,6 +2,7 @@ import argparse
 import socket
 import struct
 import threading
+import json
 from typing import Tuple
 
 try:
@@ -37,14 +38,25 @@ def write_message(connection: socket.socket, payload: bytes) -> None:
 def handle_client(connection: socket.socket, address: Tuple[str, int]) -> None:
     try:
         raw = read_message(connection)
-        print(f"Received message: {raw}")
-        object_path = raw.decode("utf-8")
-        if object_path == "/Slurm/Quartz":
-            obj = WPSlurmBatchSystem("Quartz Batch System", "quartz.uits.iu.edu")
-        else:
-            raise KeyError(f"Unknown object path: {object_path}")
-        payload = pickle.dumps(obj)
-        write_message(connection, payload)
+        try:
+            message = json.loads(raw.decode("utf-8"))
+        except Exception:
+            raise ValueError("Invalid JSON request")
+
+        action = message.get("action")
+        
+        if action != "GetObject":
+            raise ValueError("Unsupported action")
+
+        if action == "GetObject":
+            object_path = message.get("path")
+            print(f"Received message: {action} {object_path}")
+            if object_path == "/Slurm/Quartz":
+                obj = WPSlurmBatchSystem("Quartz Batch System", "quartz.uits.iu.edu")
+            else:
+                raise KeyError(f"Unknown object path: {object_path}")
+            payload = pickle.dumps(obj)
+            write_message(connection, payload)
     except Exception as exc:
         # send a structured error back to the client
         try:
