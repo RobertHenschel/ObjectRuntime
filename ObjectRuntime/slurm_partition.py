@@ -20,12 +20,6 @@ class WPSlurmPartition(WPObject):
         # get number of jobs in the partition
         self.children = self._get_jobs()
 
-    def getTitle(self) -> str:
-        return self.title
-
-    def getIcon(self) -> str:
-        return self.icon
-
     def _get_jobs(self) -> list[WPSlurmJob]:
         with subprocess.Popen(["squeue", "-p", self.title, "-h", "-o", "%i"], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
             stdout, stderr = proc.communicate()
