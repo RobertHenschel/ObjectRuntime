@@ -51,7 +51,8 @@ def main() -> None:
     # If the server returned an error dict
     if isinstance(obj, dict) and "error" in obj:
         raise RuntimeError(f"Server error: {obj['error']}")
-    # Version 1: call getTitle dynamically and print
+    obj.setHost(args.host)
+    obj.setPort(args.port)
     if hasattr(obj, "getTitle"):
         title = getattr(obj, "getTitle")()
         print(title)

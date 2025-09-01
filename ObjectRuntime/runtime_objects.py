@@ -13,12 +13,16 @@ class WPSlurmBatchSystem:
     Methods:
         - getTitle(): return the title for display in the viewer
     """
-    
+    host: str
+    port: int
+    icon: str
+
     # Create a constructor that takes the title as an argument
     def __init__(self, title: str, host: str) -> None:
-        self.icon = (
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
-        )
+        import os
+        resource_path = os.path.join(os.path.dirname(__file__), "Resources", "Slurm.png")
+        with open(resource_path, "rb") as f:
+            self.icon = base64.b64encode(f.read()).decode("utf-8")
         self.title = title
         self.host = host
         self.partitions = self._getPartitions()
@@ -28,6 +32,13 @@ class WPSlurmBatchSystem:
 
     def getPartitions(self) -> list[str]:
         return self.partitions
+    
+    def setPort(self, port: int) -> None:
+        self.port = port
+    
+    def setHost(self, host: str) -> None:
+        self.host = host
+    
 
     # create a function that uses the slurm binaries to list all partitions
     # ssh into "hostname" first using the current user
@@ -42,6 +53,7 @@ class WPSlurmBatchSystem:
     def wp_open(self) -> None:
         """Open a Qt5 window listing available partitions with a refresh button."""
         from PyQt5 import QtWidgets
+        from PyQt5.QtGui import QIcon, QPixmap
 
         app = QtWidgets.QApplication.instance()
         owns_app = False
@@ -51,6 +63,18 @@ class WPSlurmBatchSystem:
 
         window = QtWidgets.QMainWindow()
         window.setWindowTitle(self.title)
+
+        # Set application/window icon from base64-encoded PNG bytes
+        try:
+            icon_bytes = base64.b64decode(self.icon)
+            pixmap = QPixmap()
+            if pixmap.loadFromData(icon_bytes, "PNG"):
+                icon = QIcon(pixmap)
+                window.setWindowIcon(icon)
+                app.setWindowIcon(icon)
+        except Exception:
+            # If icon loading fails, continue without blocking the UI
+            pass
 
         central = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(central)
