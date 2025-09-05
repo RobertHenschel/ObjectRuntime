@@ -4,8 +4,10 @@ import socket
 import struct
 import json
 import os
+from typing import TYPE_CHECKING
 from .wp_object import WPObject
-from .slurm_partition import WPSlurmPartition
+if TYPE_CHECKING:
+    from .slurm_partition import WPSlurmPartition  # for type hints only
 
 class WPSlurmBatchSystem(WPObject):
     """
@@ -18,34 +20,33 @@ class WPSlurmBatchSystem(WPObject):
     Methods:
         - getTitle(): return the title for display in the viewer
     """
+    slurm_host: str
 
     # Create a constructor that takes the title as an argument
-    def __init__(self, title: str, path: str, host: str) -> None:
-        super().__init__(title, path, host=host)
+    def __init__(self, title: str, path: str, slurm_host: str) -> None:
+        super().__init__(title, path)
+        self.slurm_host = slurm_host
         resource_path = os.path.join(os.path.dirname(__file__), "Resources", "Slurm.png")
         with open(resource_path, "rb") as f:
             icon = base64.b64encode(f.read()).decode("utf-8")
             self.setIcon(icon)
-        
-        self.children = self._getPartitions()
-        
-    
-    # setPort and setHost inherited from WPObject
     
 
     # create a function that uses the slurm binaries to list all partitions
     # ssh into "hostname" first using the current user
-    def _getPartitions(self) -> list[WPSlurmPartition]:
+    def getPartitions(self):
         # make it skip the header
-        with subprocess.Popen(["ssh", self.host, "sinfo -O partition -h"], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
+        with subprocess.Popen(["ssh", self.slurm_host, "sinfo -O partition -h"], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
             stdout, stderr = proc.communicate()
             if proc.returncode != 0:
                 raise RuntimeError(f"Failed to get partitions: {stderr.decode('utf-8')}")
             for partition in stdout.decode('utf-8').splitlines():
                 # remove the ending "*" that marks the default partition
                 partition = partition.strip().rstrip("*").strip()
-                self.children.append(WPSlurmPartition(partition, f"{self.path}/{partition}", self.host, self.port))
-            # strip the partitions and remove ending "*" that marks the default partition
-            return self.children
+                # Local import to avoid circular import at module import time
+                from .slurm_partition import WPSlurmPartition
+                obj = WPSlurmPartition(partition, f"{self.path}/{partition}", self.slurm_host)
+                obj.get_jobs()
+                self.children.append(obj)
     
     

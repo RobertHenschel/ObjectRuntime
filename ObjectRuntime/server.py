@@ -54,9 +54,11 @@ def handle_client(connection: socket.socket, address: Tuple[str, int]) -> None:
             print(f"Received message: {action} {object_path}")
             if object_path == "/Slurm/Quartz":
                 obj = WPSlurmBatchSystem("Quartz Batch System", "/Slurm/Quartz", "quartz.uits.iu.edu")
+                obj.getPartitions()
             elif object_path.startswith("/Slurm/Quartz/"):
                 partition_name = object_path.rsplit("/", 1)[-1]
-                obj = WPSlurmPartition(partition_name, object_path)
+                obj = WPSlurmPartition(partition_name, object_path, "quartz.uits.iu.edu")
+                obj.get_jobs()
             else:
                 raise KeyError(f"Unknown object path: {object_path}")
             payload = pickle.dumps(obj)
