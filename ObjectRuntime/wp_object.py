@@ -7,6 +7,7 @@ class WPObject:
     host: Optional[str]
     port: Optional[int]
     children: []
+    children_count: int
     path: str
 
     def __init__(self, title: str, path: str, host: Optional[str] = None, port: Optional[int] = None) -> None:
@@ -15,6 +16,7 @@ class WPObject:
         self.port = port
         self.children = []
         self.path = path
+        self.children_count = 0
 
     def getTitle(self) -> str:
         return self.title

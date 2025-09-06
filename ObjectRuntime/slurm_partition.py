@@ -27,8 +27,8 @@ class WPSlurmPartition(WPSlurmBatchSystem):
                 self.children.append(WPSlurmJob(job, f"{self.path}/{job}", self.host, self.port))
     
     def getBadge(self) -> str:
-        if len(self.children) > 0:
-            return f"{len(self.children)}"
+        if self.children_count > 0:
+            return f"{self.children_count}"
         else:
             return ""
     

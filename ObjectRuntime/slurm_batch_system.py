@@ -35,18 +35,31 @@ class WPSlurmBatchSystem(WPObject):
     # create a function that uses the slurm binaries to list all partitions
     # ssh into "hostname" first using the current user
     def getPartitions(self):
-        # make it skip the header
-        with subprocess.Popen(["ssh", self.slurm_host, "sinfo -O partition -h"], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
+        # Single SSH call: get partitions with job counts
+        script = 'sinfo -h -o %P | sed "s/\\*$//" | while read p; do echo "$p $(squeue -h -p "$p" | wc -l)"; done'
+        with subprocess.Popen(["ssh", self.slurm_host, script], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
             stdout, stderr = proc.communicate()
             if proc.returncode != 0:
-                raise RuntimeError(f"Failed to get partitions: {stderr.decode('utf-8')}")
-            for partition in stdout.decode('utf-8').splitlines():
-                # remove the ending "*" that marks the default partition
-                partition = partition.strip().rstrip("*").strip()
-                # Local import to avoid circular import at module import time
-                from .slurm_partition import WPSlurmPartition
-                obj = WPSlurmPartition(partition, f"{self.path}/{partition}", self.slurm_host)
-                obj.getJobs()
-                self.children.append(obj)
+                raise RuntimeError(f"Failed to get partitions and counts: {stderr.decode('utf-8')}")
+
+        self.children = []
+        for line in stdout.decode('utf-8').splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parts = line.split()
+                if len(parts) >= 2:
+                    part = parts[0]
+                    count = int(parts[1])
+                else:
+                    continue
+            except Exception:
+                continue
+            
+            from .slurm_partition import WPSlurmPartition  # local import to avoid cycle
+            obj = WPSlurmPartition(part, f"{self.path}/{part}", self.slurm_host)
+            obj.children_count = count
+            self.children.append(obj)
     
     
