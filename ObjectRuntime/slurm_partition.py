@@ -18,13 +18,16 @@ class WPSlurmPartition(WPSlurmBatchSystem):
             self.icon = base64.b64encode(f.read()).decode("utf-8")
             self.setIcon(self.icon)
 
-    def get_jobs(self) -> list[WPSlurmJob]:
+    def getJobs(self) -> list[WPSlurmJob]:
         with subprocess.Popen(["ssh", self.slurm_host, "squeue", "-p", self.title, "-h", "-o", "%i"], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
             stdout, stderr = proc.communicate()
             if proc.returncode != 0:
                 raise RuntimeError(f"Failed to get number of jobs: {stderr.decode('utf-8')}")
             for job in stdout.decode('utf-8').splitlines():
                 self.children.append(WPSlurmJob(job, f"{self.path}/{job}", self.host, self.port))
+    
+    def getBadge(self) -> str:
+        return f"{len(self.children)}"
     
 
 

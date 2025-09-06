@@ -33,7 +33,7 @@ class WPObject:
 
     def wp_open_icon_view(self) -> None:
             from PyQt5 import QtWidgets
-            from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush, QFont
+            from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush, QFont, QFontMetrics
             from PyQt5.QtCore import Qt, QRect
 
             app = QtWidgets.QApplication.instance()
@@ -131,26 +131,34 @@ class WPObject:
                     if pixmap.loadFromData(icon_bytes, "PNG"):
                         scaled = pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                         # Draw badge with number of jobs if > 0
-                        if len(part.children) > 0:
+                        if hasattr(part, "getBadge") and part.getBadge() != "":
                             # Paint badge on a copy of the pixmap
                             composed = QPixmap(scaled)
                             painter = QPainter(composed)
                             try:
                                 painter.setRenderHint(QPainter.Antialiasing, True)
-                                badge_d = 22
-                                x = composed.width() - badge_d - 2
-                                y = composed.height() - badge_d - 2
-                                # Draw red circle
-                                painter.setBrush(QBrush(QColor(220, 0, 0)))
-                                painter.setPen(Qt.NoPen)
-                                painter.drawEllipse(x, y, badge_d, badge_d)
-                                # Draw white text
-                                painter.setPen(QColor(255, 255, 255))
+                                # Measure text and compute pill rect size
+                                text = str(part.getBadge())
                                 font = painter.font()
                                 font.setBold(True)
-                                font.setPointSize(max(7, int(badge_d * 0.45)))
                                 painter.setFont(font)
-                                painter.drawText(QRect(x, y, badge_d, badge_d), Qt.AlignCenter, str(len(part.children)))
+                                metrics = QFontMetrics(font)
+                                text_w = metrics.horizontalAdvance(text)
+                                text_h = metrics.height()
+                                pad_x = 8
+                                pad_y = 4
+                                rect_w = text_w + 2 * pad_x
+                                rect_h = text_h + 2 * pad_y
+                                x = composed.width() - rect_w - 4
+                                y = composed.height() - rect_h - 4
+                                radius = rect_h / 2.0
+                                # Draw red rounded rectangle
+                                painter.setBrush(QBrush(QColor(220, 0, 0)))
+                                painter.setPen(Qt.NoPen)
+                                painter.drawRoundedRect(QRect(x, y, rect_w, rect_h), radius, radius)
+                                # Draw white text centered
+                                painter.setPen(QColor(255, 255, 255))
+                                painter.drawText(QRect(x, y, rect_w, rect_h), Qt.AlignCenter, text)
                             finally:
                                 painter.end()
                             icon_label.setPixmap(composed)

@@ -46,7 +46,7 @@ class WPSlurmBatchSystem(WPObject):
                 # Local import to avoid circular import at module import time
                 from .slurm_partition import WPSlurmPartition
                 obj = WPSlurmPartition(partition, f"{self.path}/{partition}", self.slurm_host)
-                obj.get_jobs()
+                obj.getJobs()
                 self.children.append(obj)
     
     

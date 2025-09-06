@@ -8,7 +8,7 @@ class WPSlurmJob(WPObject):
     """
     Minimal representation of a Slurm job object.
     """
-
+    state: str # Pending or Running
 
     def __init__(self, title: str, path: str, host: str | None = None, port: int | None = None) -> None:
         super().__init__(title, path, host=host, port=port)
@@ -18,6 +18,13 @@ class WPSlurmJob(WPObject):
             self.setIcon(self.icon)
         # get number of jobs in the partition
         self.children = []
+        self.state = "Pending"
+    
+    def getBadge(self) -> str:
+        if self.state == "Running":
+            return "Running"
+        else:
+            return ""
 
 
 
