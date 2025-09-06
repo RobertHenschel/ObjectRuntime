@@ -21,10 +21,7 @@ class WPSlurmJob(WPObject):
         self.state = "Pending"
     
     def getBadge(self) -> str:
-        if self.state == "Running":
-            return "Running"
-        else:
-            return ""
+        return self.state
 
 
 
