@@ -12,6 +12,7 @@ except Exception:  # pragma: no cover - fallback
 
 from .slurm_batch_system import WPSlurmBatchSystem
 from .slurm_partition import WPSlurmPartition
+from .slurm_job import WPSlurmJob
 
 
 def recv_all(connection: socket.socket, num_bytes: int) -> bytes:
@@ -56,9 +57,16 @@ def handle_client(connection: socket.socket, address: Tuple[str, int]) -> None:
                 obj = WPSlurmBatchSystem("Quartz Batch System", "/Slurm/Quartz", "quartz.uits.iu.edu")
                 obj.getPartitions()
             elif object_path.startswith("/Slurm/Quartz/"):
-                partition_name = object_path.rsplit("/", 1)[-1]
-                obj = WPSlurmPartition(partition_name, object_path, "quartz.uits.iu.edu")
-                obj.getJobs()
+                # check if path is a partion or a job
+                # if path has three slashes, it is a partition, otherwise it is a job
+                if object_path.count("/") == 3:
+                    partition_name = object_path.rsplit("/", 1)[-1]
+                    obj = WPSlurmPartition(partition_name, object_path, "quartz.uits.iu.edu")
+                    obj.getJobs()
+                else:
+                    obj = WPSlurmJob(object_path.rsplit("/", 1)[-1], object_path)
+                    obj.setSlurmHost("quartz.uits.iu.edu")
+                    obj.getDetails()
             else:
                 raise KeyError(f"Unknown object path: {object_path}")
             payload = pickle.dumps(obj)
