@@ -1,22 +1,27 @@
 from typing import Optional
 import base64
+import os
 
 class WPObject:
     title: str
     icon: str
-    host: Optional[str]
-    port: Optional[int]
+    host: str
+    port: int
     children: []
     children_count: int
     path: str
 
-    def __init__(self, title: str, path: str, host: Optional[str] = None, port: Optional[int] = None) -> None:
+    def __init__(self, title: str, path: str) -> None:
         self.title = title
-        self.host = host
-        self.port = port
         self.children = []
         self.path = path
         self.children_count = 0
+        self.host = None
+        self.port = None
+        icon = self.__class__.__name__ + ".png"
+        resource_path = os.path.join(os.path.dirname(__file__), "Resources", icon)
+        with open(resource_path, "rb") as f:
+            self.icon = base64.b64encode(f.read()).decode("utf-8")
 
     def getTitle(self) -> str:
         return self.title

@@ -3,11 +3,9 @@ import subprocess
 import socket
 import struct
 import json
-import os
 from typing import TYPE_CHECKING
 from .wp_object import WPObject
-if TYPE_CHECKING:
-    from .slurm_partition import WPSlurmPartition  # for type hints only
+from .slurm_partition import WPSlurmPartition
 
 class WPSlurmBatchSystem(WPObject):
     """
@@ -26,10 +24,6 @@ class WPSlurmBatchSystem(WPObject):
     def __init__(self, title: str, path: str, slurm_host: str) -> None:
         super().__init__(title, path)
         self.slurm_host = slurm_host
-        resource_path = os.path.join(os.path.dirname(__file__), "Resources", "Slurm.png")
-        with open(resource_path, "rb") as f:
-            icon = base64.b64encode(f.read()).decode("utf-8")
-            self.setIcon(icon)
     
 
     # create a function that uses the slurm binaries to list all partitions
@@ -57,8 +51,9 @@ class WPSlurmBatchSystem(WPObject):
             except Exception:
                 continue
             
-            from .slurm_partition import WPSlurmPartition  # local import to avoid cycle
             obj = WPSlurmPartition(part, f"{self.path}/{part}", self.slurm_host)
+            obj.setHost(self.host)
+            obj.setPort(self.port)
             obj.children_count = count
             self.children.append(obj)
     
