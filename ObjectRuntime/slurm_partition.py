@@ -24,7 +24,11 @@ class WPSlurmPartition(WPObject):
             if proc.returncode != 0:
                 raise RuntimeError(f"Failed to get number of jobs: {stderr.decode('utf-8')}")
             for job in stdout.decode('utf-8').splitlines():
-                self.children.append(WPSlurmJob(job, f"{self.path}/{job}"))
+                job_obj = WPSlurmJob(job, f"{self.path}/{job}")
+                job_obj.setHost(self.host)
+                job_obj.setPort(self.port)
+                job_obj.setSlurmHost(self.slurm_host)
+                self.children.append(job_obj)
     
     def getBadge(self) -> str:
         if self.children_count > 0:

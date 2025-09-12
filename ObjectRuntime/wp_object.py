@@ -50,7 +50,7 @@ class WPObject:
                 owns_app = True
 
             window = QtWidgets.QMainWindow()
-            window.setWindowTitle(self.title + " - Partitions")
+            window.setWindowTitle(self.title)
 
             # Set app icon same as wp_open
             try:
