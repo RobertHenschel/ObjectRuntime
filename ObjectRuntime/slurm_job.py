@@ -23,6 +23,9 @@ class WPSlurmJob(WPObject):
 
     def getBadge(self) -> str:
         return self.state
+    
+    def wp_open(self, view: str = None) -> None:
+        super().wp_open(view)
 
 
 

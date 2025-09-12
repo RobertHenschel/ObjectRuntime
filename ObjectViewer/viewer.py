@@ -64,6 +64,7 @@ def main() -> None:
     parser.add_argument("--object", dest="object_path", required=True, help="Path of object to fetch")
     parser.add_argument("--host", default="127.0.0.1", help="Server host")
     parser.add_argument("--port", type=int, default=9100, help="Server port")
+    parser.add_argument("--view", default=None, help="View to open (icon(Default), settings)")
     args = parser.parse_args()
 
     obj = fetch_object(args.host, args.port, args.object_path)
@@ -75,9 +76,9 @@ def main() -> None:
     if hasattr(obj, "getTitle"):
         title = getattr(obj, "getTitle")()
         print(title)
-    if hasattr(obj, "wp_open_icon_view"):
+    if hasattr(obj, "wp_open"):
         def _launch():
-            getattr(obj, "wp_open_icon_view")()
+            getattr(obj, "wp_open")(args.view)
         spawn_detached(_launch)
     print("Done")
     # end the application

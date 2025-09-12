@@ -38,7 +38,7 @@ class WPObject:
     def getIcon(self) -> str:
         return self.icon
 
-    def wp_open_icon_view(self) -> None:
+    def wp_open(self, view: str = None) -> None:
             from PyQt5 import QtWidgets
             from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush, QFont, QFontMetrics
             from PyQt5.QtCore import Qt, QRect
