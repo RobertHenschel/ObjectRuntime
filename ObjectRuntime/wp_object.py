@@ -1,13 +1,13 @@
-from typing import Optional
+from typing import Optional, List
 import base64
 import os
 
 class WPObject:
     title: str
     icon: str
-    host: str
-    port: int
-    children: []
+    host: Optional[str]
+    port: Optional[int]
+    children: List["WPObject"]
     children_count: int
     path: str
 
@@ -74,19 +74,72 @@ class WPObject:
             row = 0
             col = 0
             
-            class _Clickable(QtWidgets.QWidget):
-                def __init__(self, callback):
+            # Styles for selection visuals
+            SELECTED_CELL_STYLE = (
+                "QFrame#cell { border: 2px solid #2D7CFF; border-radius: 8px; "
+                "background-color: rgba(45,124,255,0.08); } "
+                "QLabel { border: none; background: transparent; }"
+            )
+            UNSELECTED_CELL_STYLE = (
+                "QFrame#cell { border: 2px solid transparent; border-radius: 8px; } "
+                "QLabel { border: none; background: transparent; }"
+            )
+            TITLE_SELECTED_STYLE = "border: none; background: transparent; color: #2D7CFF;"
+            TITLE_UNSELECTED_STYLE = "border: none; background: transparent;"
+
+            # Manage single selection across all cells in the grid
+            selected_cell: Optional["_Clickable"] = None
+            def _set_selected_cell(new_cell):
+                nonlocal selected_cell
+                # Deselect previous cell if different
+                if selected_cell is not None and selected_cell is not new_cell:
+                    selected_cell.setSelected(False)
+                selected_cell = new_cell
+                if new_cell is not None:
+                    new_cell.setSelected(True)
+
+            class _Clickable(QtWidgets.QFrame):
+                def __init__(self, open_callback, select_callback):
                     super().__init__()
-                    self._callback = callback
+                    self._open_callback = open_callback
+                    self._select_callback = select_callback
+                    self._icon_label = None
+                    self._title_label = None
+                    self.setCursor(Qt.PointingHandCursor)
+                    # Ensure stylesheet backgrounds/borders are painted on QWidget
+                    self.setAttribute(Qt.WA_StyledBackground, True)
+                    # Avoid focus outline that could look like a second border
+                    self.setFocusPolicy(Qt.NoFocus)
+                    # Give a predictable selector name for stylesheet scoping
+                    self.setObjectName("cell")
+                    # Start unselected
+                    self.setSelected(False)
+                
+                def setContent(self, icon_label, title_label):
+                    self._icon_label = icon_label
+                    self._title_label = title_label
+                
+                def setSelected(self, is_selected: bool):
+                    # Visual selection: single blue border around the whole cell and subtle blue background
+                    if is_selected:
+                        self.setStyleSheet(SELECTED_CELL_STYLE)
+                        if self._title_label is not None:
+                            self._title_label.setStyleSheet(TITLE_SELECTED_STYLE)
+                    else:
+                        self.setStyleSheet(UNSELECTED_CELL_STYLE)
+                        if self._title_label is not None:
+                            self._title_label.setStyleSheet(TITLE_UNSELECTED_STYLE)
+
+                def mousePressEvent(self, event):
+                    # Single click selects this cell
+                    if event.button() == Qt.LeftButton and callable(self._select_callback):
+                        self._select_callback(self)
+                    super().mousePressEvent(event)
+
                 def mouseDoubleClickEvent(self, event):
-                    try:
-                        if callable(self._callback):
-                            self._callback()
-                    finally:
-                        try:
-                            super().mouseDoubleClickEvent(event)
-                        except Exception:
-                            pass
+                    if callable(self._open_callback):
+                        self._open_callback()
+                    super().mouseDoubleClickEvent(event)
 
             for part in self.children:
                 # Determine child path for launching viewer
@@ -106,17 +159,16 @@ class WPObject:
                         print(f"Failed to launch viewer: {e}")
                         pass
 
-                cell = _Clickable(_launch_viewer)
-                try:
-                    cell.setCursor(Qt.PointingHandCursor)
-                except Exception:
-                    pass
+                cell = _Clickable(_launch_viewer, _set_selected_cell)
                 vbox = QtWidgets.QVBoxLayout(cell)
                 vbox.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+                vbox.setContentsMargins(8, 8, 8, 8)
 
                 icon_label = QtWidgets.QLabel()
                 icon_label.setFixedSize(96, 96)
                 icon_label.setAlignment(Qt.AlignCenter)
+                icon_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+                icon_label.setStyleSheet("border: none; background: transparent;")
 
                 title = part
                 icon_b64 = self.icon
@@ -176,6 +228,10 @@ class WPObject:
 
                 title_label = QtWidgets.QLabel(title)
                 title_label.setAlignment(Qt.AlignCenter)
+                title_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+                title_label.setStyleSheet("border: none; background: transparent;")
+
+                cell.setContent(icon_label, title_label)
 
                 vbox.addWidget(icon_label)
                 vbox.addWidget(title_label)
